@@ -4,75 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Morse Controller</title>
+    <title>Morse App</title>
     <style>
-        body {
-            background-color: #121212;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            overflow: hidden;
-        }
+        body { background-color: #121212; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
         #status { margin-bottom: 20px; font-weight: bold; color: #ff4b2b; }
-        
-        /* 信号を送るメインボタン */
-        #morseButton {
-            width: 220px;
-            height: 220px;
-            background: radial-gradient(#ff4b2b, #db3616);
-            border: none;
-            border-radius: 50%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(255, 75, 43, 0.3);
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            outline: none;
-            transition: transform 0.1s;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-        #morseButton:active {
-            transform: scale(0.92);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5), 0 0 40px rgba(255, 75, 43, 0.6);
-            filter: brightness(1.2);
-        }
-
-        .controls {
-            margin-top: 40px;
-        }
-
-        button.connect-btn {
-            padding: 12px 24px;
-            background-color: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        
-        button.connect-btn:hover { background-color: #444; }
-
-        .hint { margin-top: 20px; font-size: 12px; color: #666; }
+        #morseButton { width: 220px; height: 220px; background: radial-gradient(#ff4b2b, #db3616); border: none; border-radius: 50%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: white; font-size: 28px; font-weight: bold; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+        #morseButton:active { transform: scale(0.92); filter: brightness(1.2); }
+        .controls { margin-top: 40px; }
+        button.connect-btn { padding: 12px 24px; background-color: #333; color: white; border: 1px solid #555; border-radius: 30px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="status">OFFLINE</div>
-    <button id="morseButton">TAP / SPACE</button>
+    <button id="morseButton">PUSH</button>
     
     <div class="controls">
         <button class="connect-btn" id="connectBtn">デバイスに接続</button>
     </div>
-
-    <div class="hint">PCの場合、スペースキーでも操作できます</div>
 
     <script>
         let charac;
@@ -80,31 +29,30 @@
         const connectBtn = document.getElementById('connectBtn');
         const morseBtn = document.getElementById('morseButton');
 
-async function connect() {
-    try {
-        // 全て小文字に変更しました
-        const serviceUuid = '19b10000-e8f2-537e-4f6c-d104768a1214';
-        const characteristicUuid = '19b10001-e8f2-537e-4f6c-d104768a1214';
+        // UUIDをすべて小文字に修正
+        const SERVICE_UUID = '19b10000-e8f2-537e-4f6c-d104768a1214';
+        const CHARACTERISTIC_UUID = '19b10001-e8f2-537e-4f6c-d104768a1214';
 
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ name: 'WebMorseR4' }],
-            optionalServices: [serviceUuid] // ここが小文字である必要があります
-        });
-        
-        statusText.innerText = "接続中...";
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService(serviceUuid);
-        charac = await service.getCharacteristic(characteristicUuid);
-        
-        statusText.innerText = "ONLINE";
-        statusText.style.color = "#00ff00";
-        connectBtn.style.display = "none";
-    } catch (err) {
-        // エラー内容を表示
-        alert("接続エラー: " + err.message);
-        statusText.innerText = "ERROR";
-    }
-}
+        async function connect() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'WebMorseR4' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+                
+                statusText.innerText = "接続中...";
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                charac = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                
+                statusText.innerText = "ONLINE";
+                statusText.style.color = "#00ff00";
+                connectBtn.style.display = "none";
+            } catch (err) {
+                alert("接続エラー: " + err.message);
+                statusText.innerText = "ERROR";
+            }
+        }
 
         async function sendSignal(value) {
             if (!charac) return;
@@ -115,25 +63,14 @@ async function connect() {
 
         connectBtn.onclick = connect;
 
-        // マウス・タッチ操作
+        // 操作（マウス・タッチ共通）
         morseBtn.onpointerdown = (e) => { e.preventDefault(); sendSignal(1); };
         morseBtn.onpointerup = (e) => { e.preventDefault(); sendSignal(0); };
         morseBtn.onpointerleave = (e) => { e.preventDefault(); sendSignal(0); };
 
-        // キーボード（スペースキー）操作
-        window.onkeydown = (e) => {
-            if (e.code === 'Space' && !e.repeat) {
-                e.preventDefault();
-                sendSignal(1);
-                morseBtn.style.transform = "scale(0.92)";
-            }
-        };
-        window.onkeyup = (e) => {
-            if (e.code === 'Space') {
-                sendSignal(0);
-                morseBtn.style.transform = "scale(1)";
-            }
-        };
+        // スペースキー対応
+        window.onkeydown = (e) => { if (e.code === 'Space' && !e.repeat) { e.preventDefault(); sendSignal(1); } };
+        window.onkeyup = (e) => { if (e.code === 'Space') { sendSignal(0); } };
     </script>
 </body>
 </html>
